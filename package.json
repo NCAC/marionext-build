@@ -1,6 +1,6 @@
 {
   "name": "@ncac/marionext-build-tool",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Build tools for marionext's packages",
   "repository": "https://github.com/NCAC/marionext-build.git",
   "publishConfig": {

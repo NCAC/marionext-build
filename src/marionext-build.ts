@@ -145,7 +145,7 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
           }
         }
       };
-      if (!opts.plugins) {
+      if (!opts?.plugins) {
         inputOptions.plugins = [
           nodeResolve(),
           rollupTypescript({
@@ -156,7 +156,7 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
         inputOptions.plugins = opts.plugins;
       }
 
-      if (!opts.includeExternal) {
+      if (!opts?.includeExternal) {
         inputOptions.external = Object.keys(buildTool.pkg.dependencies);
       }
 
@@ -171,7 +171,7 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
       return build(buildTool);
     })
     .finally(() => {
-      if (opts.watch) {
+      if (opts?.watch) {
         watchForBuild(buildTool);
       }
     });
