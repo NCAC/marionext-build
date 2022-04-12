@@ -3,7 +3,13 @@ import fileSystem from "fs-extra";
 import { throttle } from "lodash-es";
 import { join, relative } from "path";
 import { watch } from "chokidar";
-import { rollup, InputOptions, OutputOptions, RollupBuild } from "rollup";
+import {
+  rollup,
+  InputOptions,
+  OutputOptions,
+  RollupBuild,
+  Plugin
+} from "rollup";
 import rollupTypescript from "rollup-plugin-ts";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
 import vinylFileSystem from "vinyl-fs";
@@ -14,7 +20,7 @@ async function bundlePackage(buildTool: BuildTool): Promise<void> {
   try {
     await fileSystem.ensureDir(buildTool.distPath);
     bundle = await rollup(buildTool.rollupOptions.input);
-    await bundle.write(buildTool.rollupOptions.output);
+    await (bundle as RollupBuild).write(buildTool.rollupOptions.output);
   } catch (error) {
     let errorMessage = "\n";
     Object.entries(error).forEach(([k, v]) => {
@@ -27,7 +33,7 @@ async function bundlePackage(buildTool: BuildTool): Promise<void> {
     });
   }
   if (bundle) {
-    await bundle.close();
+    await (bundle as RollupBuild).close();
   }
   // return new Promise((resolve, reject) => {
   //   ensureDir(buildTool.distPath)
@@ -117,6 +123,8 @@ function watchForBuild(buildTool: BuildTool) {
 
 export interface IBuildMarionextOptions {
   includeExternal?: boolean;
+  watch?: boolean;
+  plugins?: Plugin[];
 }
 
 export function buildMarionextPackage(opts: IBuildMarionextOptions) {
@@ -135,14 +143,18 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
           } else {
             console.warn(message);
           }
-        },
-        plugins: [
+        }
+      };
+      if (!opts.plugins) {
+        inputOptions.plugins = [
           nodeResolve(),
           rollupTypescript({
             tsconfig: join(buildTool.rootPath, "tsconfig.json")
           })
-        ]
-      };
+        ];
+      } else {
+        inputOptions.plugins = opts.plugins;
+      }
 
       if (!opts.includeExternal) {
         inputOptions.external = Object.keys(buildTool.pkg.dependencies);
@@ -159,6 +171,8 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
       return build(buildTool);
     })
     .finally(() => {
-      watchForBuild(buildTool);
+      if (opts.watch) {
+        watchForBuild(buildTool);
+      }
     });
 }
