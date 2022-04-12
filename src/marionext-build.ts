@@ -115,34 +115,41 @@ function watchForBuild(buildTool: BuildTool) {
   });
 }
 
-export function buildMarionextPackage() {
+export interface IBuildMarionextOptions {
+  includeExternal?: boolean;
+}
+
+export function buildMarionextPackage(opts: IBuildMarionextOptions) {
   let buildTool: BuildTool;
   BuildTool.init(process.cwd())
     .then((buildToolInstance) => {
       buildTool = buildToolInstance;
       buildTool.start = process.hrtime();
 
-      buildTool.rollupOptions = {
-        input: {
-          external: Object.keys(buildTool.pkg.dependencies),
-          input: buildTool.srcFile,
-          onwarn({ loc, frame, message }) {
-            if (loc) {
-              console.warn(
-                `${loc.file} (${loc.line}:${loc.column}) ${message}`
-              );
-              if (frame) console.warn(frame);
-            } else {
-              console.warn(message);
-            }
-          },
-          plugins: [
-            nodeResolve(),
-            rollupTypescript({
-              tsconfig: join(buildTool.rootPath, "tsconfig.json")
-            })
-          ]
+      const inputOptions: InputOptions = {
+        input: buildTool.srcFile,
+        onwarn({ loc, frame, message }) {
+          if (loc) {
+            console.warn(`${loc.file} (${loc.line}:${loc.column}) ${message}`);
+            if (frame) console.warn(frame);
+          } else {
+            console.warn(message);
+          }
         },
+        plugins: [
+          nodeResolve(),
+          rollupTypescript({
+            tsconfig: join(buildTool.rootPath, "tsconfig.json")
+          })
+        ]
+      };
+
+      if (!opts.includeExternal) {
+        inputOptions.external = Object.keys(buildTool.pkg.dependencies);
+      }
+
+      buildTool.rollupOptions = {
+        input: inputOptions,
         output: {
           file: buildTool.outJsFile,
           format: "esm"
