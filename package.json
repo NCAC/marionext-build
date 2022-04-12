@@ -1,0 +1,56 @@
+{
+  "name": "@ncac/marionext-build-tool",
+  "version": "1.0.3",
+  "description": "Build tools for marionext's packages",
+  "repository": "https://github.com/NCAC/marionext-build.git",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "type": "module",
+  "author": {
+    "name": "NCAC",
+    "email": "dev.ncac@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "typescript",
+    "types",
+    "marionext"
+  ],
+  "prettier": {
+    "trailingComma": "none",
+    "semi": true,
+    "quoteProps": "as-needed",
+    "useTabs": false,
+    "singleQuote": false,
+    "bracketSpacing": true
+  },
+  "scripts": {
+    "build": "node ./lib/build.js"
+  },
+  "main": "./dist/marionext-build.js",
+  "types": "./dist/marionext-build.d.ts",
+  "files": [
+    "dist"
+  ],
+  "src": "./src/marionext-build.ts",
+  "dependencies": {
+    "@rollup/plugin-commonjs": "^21.0.3",
+    "@rollup/plugin-node-resolve": "^13.2.0",
+    "chalk": "^5.0.1",
+    "chokidar": "^3.5.3",
+    "dirname-filename-esm": "^1.1.1",
+    "fs-extra": "^10.0.1",
+    "gulp-prettier": "^4.0.0",
+    "lodash-es": "^4.17.21",
+    "pretty-hrtime": "^1.0.3",
+    "rollup": "^2.70.1",
+    "rollup-plugin-ts": "^2.0.5",
+    "vinyl-fs": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^9.0.13",
+    "package-json-type": "^1.0.3",
+    "typescript": "^4.6.3"
+  }
+}
