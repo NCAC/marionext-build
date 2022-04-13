@@ -16,7 +16,7 @@ import vinylFileSystem from "vinyl-fs";
 import prettier from "gulp-prettier";
 
 async function bundlePackage(buildTool: BuildTool): Promise<void> {
-  let bundle;
+  let bundle: RollupBuild;
   try {
     await fileSystem.ensureDir(buildTool.distPath);
     bundle = await rollup(buildTool.rollupOptions.input);
@@ -31,46 +31,11 @@ async function bundlePackage(buildTool: BuildTool): Promise<void> {
           * ${k}: ${v}
         `;
     });
+    buildTool.logError(errorMessage);
   }
   if (bundle) {
     await (bundle as RollupBuild).close();
   }
-  // return new Promise((resolve, reject) => {
-  //   ensureDir(buildTool.distPath)
-  //     .then(() => {
-  //       return rollup(buildTool.rollupOptions.input);
-  //     })
-  //     .catch((err) => {
-  //       let errorMessage = "\n";
-  //       Object.entries(err).forEach(([k, v]) => {
-  //         if (typeof v !== "string") {
-  //           v = JSON.stringify(v);
-  //         }
-  //         errorMessage += `
-  //         * ${k}: ${v}
-  //       `;
-  //       });
-  //       buildTool.logError(errorMessage);
-  //       reject(err);
-  //     })
-  //     .then((bundle: RollupBuild) => {
-  //       return bundle.write(buildTool.rollupOptions.output);
-  //     })
-  //     .catch((err) => {
-  //       let errorMessage = "\n";
-  //       Object.entries(err).forEach(([k, v]) => {
-  //         if (typeof v !== "string") {
-  //           v = JSON.stringify(v);
-  //         }
-  //         errorMessage += `
-  //         * ${k}: ${v}
-  //       `;
-  //       });
-  //       buildTool.logError(errorMessage);
-  //       reject(err);
-  //     })
-  //     .then(resolve);
-  // });
 }
 
 function prettyDtsFile(buildTool: BuildTool): Promise<void> {
@@ -156,7 +121,7 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
         inputOptions.plugins = opts.plugins;
       }
 
-      if (!opts?.includeExternal) {
+      if (!opts?.includeExternal && buildTool.pkg.dependencies) {
         inputOptions.external = Object.keys(buildTool.pkg.dependencies);
       }
 
