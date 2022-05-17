@@ -1,90 +1,14 @@
-import { BuildTool } from "./BuildTool";
+import { BuildTool, BuildToolTest } from "./BuildTool";
 import fileSystem from "fs-extra";
-import { throttle } from "lodash-es";
 import { join, relative } from "path";
-import { watch } from "chokidar";
-import {
-  rollup,
-  InputOptions,
-  OutputOptions,
-  RollupBuild,
-  Plugin
-} from "rollup";
+import { Plugin, InputOptions } from "rollup";
 import rollupTypescript from "rollup-plugin-ts";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
-import vinylFileSystem from "vinyl-fs";
-import prettier from "gulp-prettier";
+import { watchForBuild } from "./watch";
 
-async function bundlePackage(buildTool: BuildTool): Promise<void> {
-  let bundle: RollupBuild;
-  try {
-    await fileSystem.ensureDir(buildTool.distPath);
-    bundle = await rollup(buildTool.rollupOptions.input);
-    await (bundle as RollupBuild).write(buildTool.rollupOptions.output);
-  } catch (error) {
-    let errorMessage = "\n";
-    Object.entries(error).forEach(([k, v]) => {
-      if (typeof v !== "string") {
-        v = JSON.stringify(v);
-      }
-      errorMessage += `
-          * ${k}: ${v}
-        `;
-    });
-    buildTool.logError(errorMessage);
-  }
-  if (bundle) {
-    await (bundle as RollupBuild).close();
-  }
-}
+import inquirer from "inquirer";
 
-function prettyDtsFile(buildTool: BuildTool): Promise<void> {
-  return new Promise((resolve, reject) => {
-    vinylFileSystem
-      .src(buildTool.outDtsFile)
-      .pipe(prettier())
-      .pipe(vinylFileSystem.dest(buildTool.distPath))
-      .on("error", reject)
-      .on("end", resolve);
-  });
-}
-
-function prettyOutJsFile(buildTool: BuildTool): Promise<void> {
-  return new Promise((resolve, reject) => {
-    vinylFileSystem
-      .src(buildTool.outJsFile)
-      .pipe(prettier())
-      .pipe(vinylFileSystem.dest(buildTool.distPath))
-      .on("error", reject)
-      .on("end", resolve);
-  });
-}
-
-async function build(buildTool: BuildTool) {
-  try {
-    await bundlePackage(buildTool);
-    buildTool.log(
-      `The file ${relative(
-        buildTool.rootPath,
-        buildTool.outJsFile
-      )} has been succesfully bundled.`,
-      buildTool.duration(buildTool.start)
-    );
-    await prettyOutJsFile(buildTool);
-    return await prettyDtsFile(buildTool);
-  } catch (err) {
-    buildTool.logError(err);
-  }
-}
-
-function watchForBuild(buildTool: BuildTool) {
-  const watcher = watch(join(buildTool.rootPath, "src", "**", "*.ts"));
-  watcher.on("change", (updatedPath) => {
-    buildTool.log(`${updatedPath} has been updated, we rebuild ..`);
-    buildTool.start = process.hrtime();
-    throttle(build, 250)();
-  });
-}
+import { build, buildTest } from "./build";
 
 export interface IBuildMarionextOptions {
   includeExternal?: boolean;
@@ -137,7 +61,99 @@ export function buildMarionextPackage(opts: IBuildMarionextOptions) {
     })
     .finally(() => {
       if (opts?.watch) {
-        watchForBuild(buildTool);
+        watchForBuild(
+          buildTool,
+          build,
+          join(buildTool.rootPath, "src", "**", "*.ts")
+        );
       }
+    });
+}
+
+export function buildMarionextTest() {
+  let buildTool: BuildToolTest;
+  BuildTool.init(process.cwd())
+    .then(async (buildToolInstance) => {
+      try {
+        buildTool = buildToolInstance as BuildToolTest;
+        const availableTests = (await fileSystem.readJSON(
+          join(buildToolInstance.rootPath, "tests", "tests.json")
+        )) as string[];
+        return availableTests;
+      } catch (error) {
+        throw error;
+      }
+    })
+    .then(async (availableTests) => {
+      try {
+        const userRequest = await inquirer.prompt({
+          type: "list",
+          name: "test",
+          message: "Sélectionnez le test à effectuer",
+          validate: (answer) => {
+            if (answer.length < 1) {
+              return "Vous devez sélectionner un test";
+            }
+            return true;
+          },
+          choices: availableTests
+        });
+        return userRequest as { test: string };
+      } catch (error) {
+        throw error;
+      }
+    })
+    .then(async (userRequest) => {
+      try {
+        const json = (await fileSystem.readJSON(
+          join(buildTool.rootPath, "tests", userRequest.test, "build.json")
+        )) as {
+          path: string;
+          src: string;
+          out: string;
+        };
+        buildTool.set("test.name", json.path);
+        const testPath = join(buildTool.rootPath, "tests", json.path);
+        buildTool.set("test.path", testPath);
+        buildTool.set("test.src", join(testPath, json.src));
+        buildTool.set("test.out", join(testPath, json.out));
+        buildTool.start = process.hrtime();
+        const inputOptions: InputOptions = {
+          input: buildTool.test.src,
+          onwarn({ loc, frame, message }) {
+            if (loc) {
+              console.warn(
+                `${loc.file} (${loc.line}:${loc.column}) ${message}`
+              );
+              if (frame) console.warn(frame);
+            } else {
+              console.warn(message);
+            }
+          },
+          plugins: [
+            nodeResolve(),
+            rollupTypescript({
+              tsconfig: join(buildTool.rootPath, "tsconfig.json")
+            })
+          ]
+        };
+        buildTool.rollupOptions = {
+          input: inputOptions,
+          output: {
+            file: buildTool.test.out,
+            format: "esm"
+          }
+        };
+        return buildTest(buildTool);
+      } catch (error) {
+        throw error;
+      }
+    })
+    .finally(() => {
+      watchForBuild(
+        buildTool,
+        buildTest,
+        join(buildTool.test.path, "**", "*.ts")
+      );
     });
 }

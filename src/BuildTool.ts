@@ -4,6 +4,7 @@ import fileSystem from "fs-extra";
 import chalk from "chalk";
 import { IPackageJson } from "package-json-type";
 import { InputOptions, OutputOptions } from "rollup";
+import { set, get } from "lodash-es";
 
 export class BuildTool {
   private static instance: BuildTool;
@@ -76,6 +77,13 @@ export class BuildTool {
     return this._pkg;
   }
 
+  set(this: BuildTool, path: string, value: string) {
+    set(this, path, value);
+  }
+  get(this: BuildTool, path: string) {
+    return get(this, path);
+  }
+
   public log(...messages: string[]) {
     const args = Array.prototype.slice.call(arguments) as string[];
     const sig = chalk.green(this.packageName);
@@ -106,3 +114,11 @@ export class BuildTool {
     this._rollupOptions = rollupOptions;
   }
 }
+
+export type BuildToolTest = BuildTool & {
+  test: {
+    path: string;
+    src: string;
+    out: string;
+  };
+};
